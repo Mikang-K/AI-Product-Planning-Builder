@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.openai.com; object-src 'none'; base-uri 'none'; form-action 'self'"
+    />
+    <title>AI Product Planning Builder</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <h1>Product Builder</h1>
+            <p>Planning to Codex workflow</p>
+          </div>
+        </div>
+
+        <section class="new-project-panel" aria-labelledby="new-project-title">
+          <h2 id="new-project-title">아이디어 입력</h2>
+          <textarea
+            id="ideaInput"
+            rows="5"
+            placeholder="예: 1인 창업자를 위한 AI PRD 자동 작성 도구"
+          ></textarea>
+          <label class="toggle-row">
+            <input id="autoCodexAfterGenerateToggle" type="checkbox" />
+            생성 후 Codex Prompt 만들기
+          </label>
+          <button id="generateButton" class="primary-button" type="button">
+            기획 산출물 생성
+          </button>
+        </section>
+
+        <section class="llm-panel" aria-labelledby="llm-settings-title">
+          <div class="section-head">
+            <h2 id="llm-settings-title">LLM API</h2>
+            <label class="toggle-row">
+              <input id="useLlmToggle" type="checkbox" />
+              사용
+            </label>
+          </div>
+          <label>
+            Endpoint
+            <input
+              id="llmEndpointInput"
+              type="url"
+              placeholder="https://api.openai.com/v1/chat/completions"
+            />
+          </label>
+          <label>
+            Model
+            <input id="llmModelInput" type="text" placeholder="gpt-4o-mini" />
+          </label>
+          <label>
+            API Key
+            <input id="llmApiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
+          </label>
+          <p class="setting-note">
+            API Key는 현재 페이지 세션 메모리에만 보관됩니다. Endpoint는 허용된 OpenAI HTTPS URL만 사용할 수 있습니다.
+          </p>
+          <button id="testLlmButton" class="secondary-button" type="button">연결 테스트</button>
+        </section>
+
+        <section class="project-list-panel" aria-labelledby="project-list-title">
+          <div class="section-head">
+            <h2 id="project-list-title">프로젝트</h2>
+            <div class="project-list-actions">
+              <button id="importProjectButton" class="icon-button" type="button">가져오기</button>
+              <button id="clearProjectsButton" class="icon-button" type="button" title="전체 삭제">
+                삭제
+              </button>
+            </div>
+          </div>
+          <input id="importProjectInput" class="hidden" type="file" accept="application/json,.json" />
+          <div id="projectList" class="project-list"></div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <section id="emptyState" class="empty-state">
+          <div>
+            <p class="eyebrow">Planner Agent</p>
+            <h2>아이디어를 기획 산출물과 Codex 개발 작업으로 연결합니다.</h2>
+          </div>
+        </section>
+
+        <section id="projectWorkspace" class="project-workspace hidden">
+          <header class="workspace-header">
+            <div>
+              <p class="eyebrow">현재 프로젝트</p>
+              <h2 id="projectTitle"></h2>
+              <p id="projectDescription" class="project-description"></p>
+            </div>
+            <div class="header-actions">
+              <span id="versionBadge" class="version-badge"></span>
+              <button id="startCodexButton" class="primary-button" type="button">Codex 시작</button>
+              <button id="exportPromptsButton" class="secondary-button" type="button">Prompt JSON</button>
+              <button id="exportPrdButton" class="secondary-button" type="button">PRD MD</button>
+              <button id="exportButton" class="secondary-button" type="button">Project JSON</button>
+            </div>
+          </header>
+
+          <div id="progressPanel" class="progress-panel hidden">
+            <div class="progress-track">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <p id="progressLabel"></p>
+          </div>
+
+          <nav id="tabs" class="tabs" aria-label="산출물 탭"></nav>
+
+          <section id="tabContent" class="tab-content"></section>
+        </section>
+      </main>
+    </div>
+
+    <template id="feedbackTemplate">
+      <form id="feedbackForm" class="feedback-form">
+        <label for="feedbackInput">추가 의견 또는 조건 변경</label>
+        <div class="feedback-row">
+          <textarea
+            id="feedbackInput"
+            rows="3"
+            placeholder="예: 타깃 사용자를 1인 창업자보다 사내 PM으로 좁혀 주세요."
+          ></textarea>
+          <button class="primary-button" type="submit">PRD 업데이트</button>
+        </div>
+      </form>
+    </template>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

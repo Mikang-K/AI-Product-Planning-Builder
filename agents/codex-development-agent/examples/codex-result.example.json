@@ -1,0 +1,31 @@
+{
+  "agentRole": "developer",
+  "workItemId": "work_dev_1",
+  "status": "pass",
+  "findings": [
+    "Implemented the selected development work item within MVP scope."
+  ],
+  "recommendedChanges": [
+    "Add browser-level smoke coverage when browser automation is available."
+  ],
+  "changedFiles": [
+    "src/example.js",
+    "test/example.test.mjs"
+  ],
+  "tests": [
+    "node --test"
+  ],
+  "risks": [],
+  "approvalGate": "approved",
+  "codexEvidence": {
+    "commands": [
+      {
+        "command": "node --test",
+        "status": "pass"
+      }
+    ],
+    "notes": [
+      "No deployment step was run."
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Runtime output
+.agent-runs/
+*.log
+logs/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# Build artifacts
+dist/
+build/
+.cache/
+.parcel-cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Local generated examples
+agents/development-agent/examples/result.generated.json
+agents/codex-development-agent/examples/codex-prompt.generated.md

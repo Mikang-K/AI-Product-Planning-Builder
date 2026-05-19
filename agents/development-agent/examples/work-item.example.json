@@ -1,0 +1,22 @@
+{
+  "id": "work_dev_1",
+  "agentRole": "developer",
+  "source": "development.tasks",
+  "title": "프로젝트 저장 API 구현",
+  "description": "프로젝트 생성, 조회, 피드백 업데이트 흐름을 서버 API 경계로 분리한다.",
+  "status": "ready",
+  "priority": "high",
+  "inputArtifacts": ["prd", "development.apiSpec", "development.dataModels", "development.tasks"],
+  "acceptanceCriteria": [
+    "API 동작이 생성된 명세와 일치한다.",
+    "실패 케이스가 명확한 에러 메시지를 반환한다.",
+    "검증 단계 또는 테스트 결과가 함께 보고된다."
+  ],
+  "blockedBy": [],
+  "expectedOutput": {
+    "changedFiles": [],
+    "summary": "string",
+    "tests": [],
+    "risks": []
+  }
+}

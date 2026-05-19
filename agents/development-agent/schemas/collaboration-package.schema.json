@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": ["projectId", "projectTitle", "projectContext", "handoffInputs", "workItems"],
+  "properties": {
+    "projectId": { "type": "string" },
+    "projectTitle": { "type": "string" },
+    "exportedAt": { "type": "string" },
+    "projectContext": { "type": "object" },
+    "handoffInputs": { "type": "object" },
+    "workItems": { "type": "array" },
+    "agentRuns": { "type": "array" },
+    "approvals": { "type": "array" },
+    "reviewChecklist": { "type": "array" }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": ["agentRole", "workItemId", "status", "findings", "recommendedChanges", "changedFiles", "tests", "risks", "approvalGate"],
+  "properties": {
+    "agentRole": { "type": "string", "enum": ["developer"] },
+    "workItemId": { "type": "string" },
+    "status": { "type": "string", "enum": ["pass", "needs_revision", "blocked"] },
+    "findings": { "type": "array" },
+    "recommendedChanges": { "type": "array" },
+    "changedFiles": { "type": "array" },
+    "tests": { "type": "array" },
+    "risks": { "type": "array" },
+    "approvalGate": { "type": "string", "enum": ["approved", "requires_user_decision"] }
+  }
+}

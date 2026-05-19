@@ -1,0 +1,82 @@
+{
+  "projectId": "project_example",
+  "projectTitle": "Product Builder Persistence MVP",
+  "exportedAt": "2026-05-19T00:00:00.000Z",
+  "projectContext": {
+    "summary": "제품 기획 산출물을 프로젝트 단위로 저장하는 MVP",
+    "targetUser": "초기 제품 기획자와 개인 개발자",
+    "problem": "브라우저 localStorage만으로는 협업과 백업이 어렵다.",
+    "valueProposition": "프로젝트 산출물을 안정적으로 저장하고 다시 불러온다.",
+    "mvpScope": ["프로젝트 저장", "프로젝트 조회", "피드백 업데이트"]
+  },
+  "handoffInputs": {
+    "prd": "# PRD\n\n프로젝트 저장 API를 도입한다.",
+    "development": {
+      "apiSpec": [
+        {
+          "method": "POST",
+          "path": "/api/projects",
+          "description": "프로젝트를 생성한다."
+        },
+        {
+          "method": "GET",
+          "path": "/api/projects/:id",
+          "description": "프로젝트 산출물을 조회한다."
+        }
+      ],
+      "dataModels": [
+        {
+          "name": "Project",
+          "fields": ["id", "title", "description", "createdAt", "updatedAt"]
+        }
+      ],
+      "tasks": [
+        {
+          "title": "프로젝트 저장 API 구현",
+          "priority": "high",
+          "reason": "localStorage 의존도를 낮추기 위한 첫 서버 경계다."
+        }
+      ]
+    },
+    "validation": {
+      "risks": [
+        {
+          "title": "저장소 전환 범위 과대",
+          "severity": "medium",
+          "mitigation": "MVP에서는 생성/조회/업데이트만 포함한다."
+        }
+      ]
+    },
+    "decisionLogs": []
+  },
+  "workItems": [
+    {
+      "id": "work_dev_1",
+      "agentRole": "developer",
+      "source": "development.tasks",
+      "title": "프로젝트 저장 API 구현",
+      "description": "프로젝트 생성, 조회, 피드백 업데이트 흐름을 서버 API 경계로 분리한다.",
+      "status": "ready",
+      "priority": "high",
+      "inputArtifacts": ["prd", "development.apiSpec", "development.dataModels", "development.tasks"],
+      "acceptanceCriteria": [
+        "API 동작이 생성된 명세와 일치한다.",
+        "실패 케이스가 명확한 에러 메시지를 반환한다.",
+        "검증 단계 또는 테스트 결과가 함께 보고된다."
+      ],
+      "blockedBy": [],
+      "expectedOutput": {
+        "changedFiles": [],
+        "summary": "string",
+        "tests": [],
+        "risks": []
+      }
+    }
+  ],
+  "agentRuns": [],
+  "approvals": [],
+  "reviewChecklist": [
+    "API 명세 변경은 구현 전에 확인한다.",
+    "MVP 외 기능은 다음 단계로 미룬다."
+  ]
+}

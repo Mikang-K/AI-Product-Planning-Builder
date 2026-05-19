@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": ["packageType", "version", "projectId", "projectTitle", "workItem", "context", "implementationContract", "resultContract"],
+  "properties": {
+    "packageType": { "type": "string", "enum": ["codex-development"] },
+    "version": { "type": "number" },
+    "projectId": { "type": "string" },
+    "projectTitle": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "workItem": { "type": "object" },
+    "context": { "type": "object" },
+    "implementationContract": { "type": "object" },
+    "resultContract": { "type": "object" }
+  }
+}

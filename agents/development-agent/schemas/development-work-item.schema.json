@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "required": ["id", "agentRole", "title", "description", "status", "acceptanceCriteria", "expectedOutput"],
+  "properties": {
+    "id": { "type": "string" },
+    "agentRole": { "type": "string", "enum": ["developer"] },
+    "source": { "type": "string" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "status": { "type": "string" },
+    "priority": { "type": "string" },
+    "inputArtifacts": { "type": "array" },
+    "acceptanceCriteria": { "type": "array" },
+    "blockedBy": { "type": "array" },
+    "expectedOutput": { "type": "object" }
+  }
+}
