@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "required": ["id", "agentRole", "title", "status", "acceptanceCriteria", "blockedBy"],
+  "properties": {
+    "id": { "type": "string" },
+    "agentRole": { "type": "string", "enum": ["reviewer"] },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "status": { "type": "string", "enum": ["draft", "ready", "exported", "in_review", "pass", "needs_revision", "blocked"] },
+    "acceptanceCriteria": { "type": "array" },
+    "blockedBy": { "type": "array" },
+    "expectedOutput": { "type": "object" }
+  }
+}

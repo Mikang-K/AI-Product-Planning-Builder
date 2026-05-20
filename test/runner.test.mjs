@@ -25,6 +25,25 @@ test("validateCodexRunRequest accepts valid requests", () => {
   });
 
   assert.equal(request.projectId, "project_1");
+  assert.equal(request.agentRole, "developer");
+});
+
+test("validateCodexRunRequest accepts review run requests", () => {
+  const request = validateCodexRunRequest({
+    projectId: "project_1",
+    workItemId: "work_review_dev_1",
+    prompt: "# Review",
+    codexPackage: {
+      packageType: "codex-review",
+      workItem: {
+        id: "work_review_dev_1",
+        agentRole: "reviewer",
+      },
+    },
+  });
+
+  assert.equal(request.packageType, "codex-review");
+  assert.equal(request.agentRole, "reviewer");
 });
 
 test("validateCodexRunRequest rejects mismatched work item ids", () => {
@@ -55,6 +74,14 @@ test("buildCodexExecArgs uses workspace-write sandbox", () => {
   assert.ok(args.includes("--output-last-message"));
 });
 
+test("buildCodexExecArgs uses review schema for review packages", () => {
+  const config = createRunnerConfig({ workspaceRoot: "D:/Project/Test", runsDir: "D:/Project/Test/.agent-runs" });
+  const paths = runPaths(config, "codex_run_test");
+  const args = buildCodexExecArgs(config, paths, "codex-review");
+
+  assert.ok(args.includes(config.schemaPaths["codex-review"]));
+});
+
 test("parseCodexResultText parses fenced JSON", () => {
   const parsed = parseCodexResultText('```json\n{"agentRole":"developer"}\n```');
   assert.equal(parsed.agentRole, "developer");
@@ -79,9 +106,44 @@ test("normalizeCodexResultForRunner validates work item identity", () => {
   assert.equal(normalized.status, "pass");
 });
 
+test("normalizeCodexResultForRunner validates reviewer identity", () => {
+  const normalized = normalizeCodexResultForRunner(
+    {
+      agentRole: "reviewer",
+      workItemId: "work_review_dev_1",
+      status: "pass",
+      findings: [
+        {
+          severity: "low",
+          file: "src/example.js",
+          line: 7,
+          title: "Minor issue",
+          recommendation: "Tighten the assertion.",
+        },
+      ],
+      recommendedChanges: [],
+      changedFiles: [],
+      tests: ["node --test"],
+      risks: [],
+      approvalGate: "approved",
+    },
+    "work_review_dev_1",
+    "reviewer",
+  );
+
+  assert.equal(normalized.agentRole, "reviewer");
+  assert.equal(normalized.findings[0].file, "src/example.js");
+});
+
 test("buildBlockedResult creates importable agent result", () => {
   const result = buildBlockedResult("work_dev_1", "Codex failed.");
   assert.equal(result.agentRole, "developer");
   assert.equal(result.status, "blocked");
   assert.equal(result.approvalGate, "requires_user_decision");
+});
+
+test("buildBlockedResult can create reviewer blocked results", () => {
+  const result = buildBlockedResult("work_review_dev_1", "Codex failed.", "codex exec", "reviewer");
+  assert.equal(result.agentRole, "reviewer");
+  assert.equal(result.status, "blocked");
 });

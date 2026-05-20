@@ -23,12 +23,15 @@ import {
   buildDevelopmentAgentCliCommand,
   buildDevelopmentAgentInput,
   createAutomationRun,
+  createReviewAutomationRun,
   getRunnableDevelopmentWorkItems,
 } from "./automation.js";
 
 import {
   buildCodexDevelopmentPackage,
   buildCodexPrompt,
+  buildCodexReviewPackage,
+  buildCodexReviewPrompt,
 } from "./codexWorkflow.js";
 
 import {
@@ -54,6 +57,7 @@ import {
 
 import { renderProjectListHtml } from "./render/projectList.js";
 import { renderTabsHtml } from "./render/tabs.js";
+import { findingSeverity, formatFindingText } from "./findings.js";
 
 import {
   escapeHtml,
@@ -840,8 +844,10 @@ import {
 
   function renderCollaborationBoard(collaboration) {
     const developerItems = collaboration.workItems.filter((item) => item.agentRole === "developer");
+    const reviewerItems = collaboration.workItems.filter((item) => item.agentRole === "reviewer");
     const validatorItems = collaboration.workItems.filter((item) => item.agentRole === "validator");
     const automationRuns = Array.isArray(collaboration.automationRuns) ? collaboration.automationRuns : [];
+    const reviewAutomationRuns = Array.isArray(collaboration.reviewAutomationRuns) ? collaboration.reviewAutomationRuns : [];
     return `
       <section class="panel full collaboration-board">
         <div class="collaboration-head">
@@ -854,6 +860,7 @@ import {
               <span>Export</span>
               <button id="exportCollaborationButton" class="secondary-button" type="button">Full</button>
               <button id="exportDeveloperPackageButton" class="secondary-button" type="button">Dev</button>
+              <button id="exportReviewerPackageButton" class="secondary-button" type="button">Review</button>
               <button id="exportValidatorPackageButton" class="secondary-button" type="button">Validation</button>
             </div>
             <div class="action-group">
@@ -866,8 +873,10 @@ import {
         </div>
         ${renderDevelopmentAutomationGuide()}
         ${renderWorkItemGroup("Development Work Items", developerItems)}
+        ${renderWorkItemGroup("Code Review Work Items", reviewerItems)}
         ${renderWorkItemGroup("Validation Work Items", validatorItems)}
         ${renderAutomationRuns(automationRuns)}
+        ${renderReviewAutomationRuns(reviewAutomationRuns)}
         ${renderAgentRuns(collaboration.agentRuns)}
       </section>
     `;
@@ -946,6 +955,17 @@ import {
               `
               : ""
           }
+          ${
+            item.agentRole === "reviewer" && ["ready", "exported", "needs_revision"].includes(item.status)
+              ? `
+                <div class="action-group compact codex">
+                  <span>Review</span>
+                  <button class="secondary-button" type="button" data-work-item-review-package-id="${escapeHtml(item.id)}">Package</button>
+                  <button class="primary-button" type="button" data-work-item-review-prompt-id="${escapeHtml(item.id)}">Prompt</button>
+                </div>
+              `
+              : ""
+          }
         </div>
       </article>
     `;
@@ -960,6 +980,32 @@ import {
         <h4>Development Automation Runs</h4>
         <ul class="simple-list">
           ${automationRuns
+            .map(
+              (run) => `
+                <li>
+                  <span class="status-pill ${automationRunStatusClass(run.status)}">${escapeHtml(run.status)}</span>
+                  <strong>${escapeHtml(run.id)}</strong>
+                  <p>${escapeHtml((run.workItemIds || []).join(", "))}</p>
+                  ${run.error ? `<p>${escapeHtml(run.error)}</p>` : ""}
+                  <span>${escapeHtml(formatDate(run.completedAt || run.startedAt || run.createdAt))}</span>
+                </li>
+              `,
+            )
+            .join("")}
+        </ul>
+      </div>
+    `;
+  }
+
+  function renderReviewAutomationRuns(reviewAutomationRuns) {
+    if (!reviewAutomationRuns.length) {
+      return `<p class="project-description">No code review automation runs yet.</p>`;
+    }
+    return `
+      <div class="work-item-group">
+        <h4>Code Review Automation Runs</h4>
+        <ul class="simple-list">
+          ${reviewAutomationRuns
             .map(
               (run) => `
                 <li>
@@ -997,7 +1043,7 @@ import {
                 <li>
                   <span class="status-pill ${workItemStatusClass(run.status)}">${escapeHtml(workItemStatusLabel(run.status))}</span>
                   <strong>${escapeHtml(run.agentRole)} / ${escapeHtml(run.workItemId)}</strong>
-                  <p>${escapeHtml((run.findings || []).join(" "))}</p>
+                  ${renderAgentRunFindings(run.findings)}
                   ${renderCodexEvidence(run.codexEvidence)}
                   <span>${escapeHtml(formatDate(run.importedAt))}</span>
                 </li>
@@ -1006,6 +1052,45 @@ import {
             .join("")}
         </ul>
       </div>
+    `;
+  }
+
+  function renderAgentRunFindings(findings) {
+    const normalized = Array.isArray(findings) ? findings : [];
+    if (!normalized.length) return "";
+    return `
+      <ul class="finding-list">
+        ${normalized.map(renderFindingItem).join("")}
+      </ul>
+    `;
+  }
+
+  function renderFindingItem(finding) {
+    const severity = findingSeverity(finding);
+    if (typeof finding === "string") {
+      return `
+        <li class="finding-item">
+          <span class="severity-pill ${escapeHtml(severity)}">${escapeHtml(severity)}</span>
+          <p>${escapeHtml(finding)}</p>
+        </li>
+      `;
+    }
+
+    const location = [finding.file, finding.line ? `:${finding.line}` : ""].filter(Boolean).join("");
+    return `
+      <li class="finding-item">
+        <div class="finding-head">
+          <span class="severity-pill ${escapeHtml(severity)}">${escapeHtml(severity)}</span>
+          ${location ? `<code>${escapeHtml(location)}</code>` : ""}
+        </div>
+        <strong>${escapeHtml(finding.title || "Review finding")}</strong>
+        ${finding.description ? `<p>${escapeHtml(finding.description)}</p>` : ""}
+        ${
+          finding.recommendation
+            ? `<p class="finding-recommendation"><span>Recommendation</span>${escapeHtml(finding.recommendation)}</p>`
+            : ""
+        }
+      </li>
     `;
   }
 
@@ -1292,6 +1377,7 @@ import {
     const collaboration = ensureProjectCollaboration(project);
     const exportFullButton = document.getElementById("exportCollaborationButton");
     const exportDeveloperButton = document.getElementById("exportDeveloperPackageButton");
+    const exportReviewerButton = document.getElementById("exportReviewerPackageButton");
     const exportValidatorButton = document.getElementById("exportValidatorPackageButton");
     const runAllDeveloperButton = document.getElementById("runAllDeveloperAgentButton");
     const importResultButton = document.getElementById("importAgentResultButton");
@@ -1299,6 +1385,7 @@ import {
 
     exportFullButton?.addEventListener("click", () => exportCollaborationPackage(project, "full"));
     exportDeveloperButton?.addEventListener("click", () => exportCollaborationPackage(project, "developer"));
+    exportReviewerButton?.addEventListener("click", () => exportCollaborationPackage(project, "reviewer"));
     exportValidatorButton?.addEventListener("click", () => exportCollaborationPackage(project, "validator"));
     runAllDeveloperButton?.addEventListener("click", () => exportAllRunnableDevelopmentAgentInputs(project));
     importResultButton?.addEventListener("click", () => {
@@ -1339,6 +1426,18 @@ import {
     document.querySelectorAll("[data-work-item-codex-prompt-id]").forEach((button) => {
       button.addEventListener("click", () => {
         exportCodexDevelopmentPackage(project, button.dataset.workItemCodexPromptId, "prompt");
+      });
+    });
+
+    document.querySelectorAll("[data-work-item-review-package-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        exportCodexReviewPackage(project, button.dataset.workItemReviewPackageId, "package");
+      });
+    });
+
+    document.querySelectorAll("[data-work-item-review-prompt-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        exportCodexReviewPackage(project, button.dataset.workItemReviewPromptId, "prompt");
       });
     });
   }
@@ -1503,6 +1602,47 @@ import {
     } catch (error) {
       if (!options.quiet) {
         window.alert(`Codex 개발 패키지 생성에 실패했습니다. ${error.message}`);
+      }
+      return false;
+    }
+  }
+
+  async function exportCodexReviewPackage(project, workItemId, outputType, options = {}) {
+    const collaboration = ensureProjectCollaboration(project);
+    const workItem = collaboration.workItems.find((item) => item.id === workItemId);
+    if (!workItem) return false;
+    try {
+      const run = createReviewAutomationRun(project, workItem.id, {
+        status: outputType === "prompt" ? "running" : "queued",
+        workItemStatus: outputType === "prompt" ? "in_review" : "exported",
+      });
+      const codexPackage = buildCodexReviewPackage(project, workItem, {
+        requiredCommands: ["node --test"],
+      });
+      codexPackage.automationRun = {
+        id: run.id,
+        projectId: run.projectId,
+        workItemIds: [...run.workItemIds],
+      };
+      const baseName = `${slugify(project.title)}-${workItem.id}-codex-review`;
+      if (outputType === "prompt") {
+        const prompt = buildCodexReviewPrompt(codexPackage);
+        const started = await tryStartCodexRunner(project, codexPackage, prompt, options);
+        if (!started) {
+          downloadText(prompt, `${baseName}-prompt.md`, "text/markdown");
+        }
+      } else {
+        downloadJson(codexPackage, `${baseName}-package.json`);
+      }
+      saveState();
+      renderWorkspace();
+      if (!options.quiet) {
+        window.alert(outputType === "prompt" ? "Codex 리뷰 작업을 시작했거나 프롬프트를 생성했습니다." : "Codex 리뷰 패키지를 생성했습니다.");
+      }
+      return true;
+    } catch (error) {
+      if (!options.quiet) {
+        window.alert(`Codex 리뷰 패키지 생성에 실패했습니다. ${error.message}`);
       }
       return false;
     }

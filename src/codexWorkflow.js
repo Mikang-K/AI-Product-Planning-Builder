@@ -1,8 +1,11 @@
 import { buildCollaborationPackage, ensureProjectCollaboration } from "./collaboration.js";
+import { normalizeFindings } from "./findings.js";
 import { deepClone, now } from "./utils.js";
 
 const resultStatuses = ["pass", "needs_revision", "blocked"];
 const approvalGates = ["approved", "requires_user_decision"];
+const codexPackageTypes = ["codex-development", "codex-review"];
+const codexAgentRoles = ["developer", "reviewer"];
 
 export function buildCodexDevelopmentPackage(project, workItem, options = {}) {
   const collaborationPackage = buildCollaborationPackage(project);
@@ -128,6 +131,145 @@ ${formatList(codexPackage.implementationContract.riskChecks)}
 `;
 }
 
+export function buildCodexReviewPackage(project, workItem, options = {}) {
+  const collaborationPackage = buildCollaborationPackage(project);
+  const selectedWorkItem = resolveReviewWorkItem(collaborationPackage.workItems, workItem);
+  const developerWorkItem = resolveLinkedDeveloperWorkItem(collaborationPackage.workItems, selectedWorkItem);
+  const artifacts = project.artifacts || {};
+  const developerResult = findLatestAgentRun(collaborationPackage.agentRuns, developerWorkItem.id, "developer");
+
+  return {
+    packageType: "codex-review",
+    version: 1,
+    projectId: project.id,
+    projectTitle: project.title,
+    createdAt: options.createdAt || now(),
+    workItem: deepClone(selectedWorkItem),
+    developerWorkItem: deepClone(developerWorkItem),
+    developerResult: deepClone(developerResult || {}),
+    context: {
+      prd: artifacts.prd || "",
+      developmentPackage: deepClone(artifacts.development || {}),
+      validationPackage: deepClone(artifacts.validation || {}),
+      projectContext: deepClone(collaborationPackage.projectContext || {}),
+      decisionLogs: deepClone(project.decisionLogs || []),
+      changeLogs: deepClone(project.changeLogs || []),
+      agentRuns: deepClone(collaborationPackage.agentRuns || []),
+    },
+    reviewContract: {
+      requiredChecks: normalizeStringArray(options.requiredChecks).length
+        ? normalizeStringArray(options.requiredChecks)
+        : [
+            "scope compliance",
+            "changed files",
+            "test evidence",
+            "regression risk",
+            "security/privacy risk",
+            "user-facing behavior",
+          ],
+      requiredCommands: normalizeStringArray(options.requiredCommands).length ? normalizeStringArray(options.requiredCommands) : ["node --test"],
+    },
+    resultContract: {
+      format: "agent-result-json",
+      requiredFields: [
+        "agentRole",
+        "workItemId",
+        "status",
+        "findings",
+        "recommendedChanges",
+        "changedFiles",
+        "tests",
+        "risks",
+        "approvalGate",
+      ],
+    },
+  };
+}
+
+export function buildCodexReviewPrompt(codexPackage) {
+  validateCodexPackage(codexPackage);
+  return `# Codex Code Review Task
+
+## Role
+
+You are a senior code review and verification agent working in this repository.
+
+## Project Context
+
+${formatJson(codexPackage.context.projectContext)}
+
+## PRD
+
+${codexPackage.context.prd || "No PRD was provided."}
+
+## Development Package
+
+${formatJson(codexPackage.context.developmentPackage)}
+
+## Validation Package
+
+${formatJson(codexPackage.context.validationPackage)}
+
+## Developer Work Item
+
+${formatJson(codexPackage.developerWorkItem)}
+
+## Developer Result
+
+${formatJson(codexPackage.developerResult)}
+
+## Review Work Item
+
+${formatJson(codexPackage.workItem)}
+
+## Required Review Checks
+
+${formatList(codexPackage.reviewContract.requiredChecks)}
+
+## Required Commands
+
+${formatList(codexPackage.reviewContract.requiredCommands)}
+
+## Instructions
+
+1. Inspect the repository and the developer result evidence.
+2. Verify that the implementation matches the linked development work item and PRD.
+3. Run or reason about the required verification commands.
+4. Prioritize concrete bugs, regressions, missing tests, and scope mismatches.
+5. Use structured findings whenever possible: severity, file, line, title, description, recommendation.
+6. Return only Agent Result JSON that Product Builder can import.
+
+## Output
+
+\`\`\`json
+{
+  "agentRole": "reviewer",
+  "workItemId": "${codexPackage.workItem.id}",
+  "status": "pass",
+  "findings": [
+    {
+      "severity": "high",
+      "file": "src/example.js",
+      "line": 1,
+      "title": "Potential regression",
+      "description": "Explain the concrete problem.",
+      "recommendation": "Describe the exact fix or verification needed."
+    }
+  ],
+  "recommendedChanges": [],
+  "changedFiles": [],
+  "tests": [],
+  "risks": [],
+  "approvalGate": "approved",
+  "codexEvidence": {
+    "commands": [],
+    "notes": []
+  }
+}
+\`\`\`
+`;
+}
+
 export function normalizeCodexResult(result) {
   if (!result || typeof result !== "object" || Array.isArray(result)) {
     throw new Error("Codex result must be an object.");
@@ -136,7 +278,7 @@ export function normalizeCodexResult(result) {
     agentRole: String(result.agentRole || "").trim(),
     workItemId: String(result.workItemId || "").trim(),
     status: String(result.status || "").trim(),
-    findings: normalizeStringArray(result.findings),
+    findings: normalizeFindings(result.findings),
     recommendedChanges: normalizeStringArray(result.recommendedChanges),
     changedFiles: normalizeStringArray(result.changedFiles),
     tests: normalizeStringArray(result.tests),
@@ -144,8 +286,8 @@ export function normalizeCodexResult(result) {
     approvalGate: approvalGates.includes(result.approvalGate) ? result.approvalGate : "approved",
   };
 
-  if (normalized.agentRole !== "developer") {
-    throw new Error("Codex result agentRole must be developer.");
+  if (!codexAgentRoles.includes(normalized.agentRole)) {
+    throw new Error("Codex result agentRole must be developer or reviewer.");
   }
   if (!normalized.workItemId) {
     throw new Error("Codex result workItemId is required.");
@@ -168,18 +310,30 @@ export function validateCodexPackage(codexPackage) {
   if (!codexPackage || typeof codexPackage !== "object" || Array.isArray(codexPackage)) {
     throw new Error("Codex package must be an object.");
   }
-  if (codexPackage.packageType !== "codex-development") errors.push("packageType must be codex-development.");
+  if (!codexPackageTypes.includes(codexPackage.packageType)) errors.push("packageType must be codex-development or codex-review.");
   if (codexPackage.version !== 1) errors.push("version must be 1.");
   if (!codexPackage.projectId) errors.push("projectId is required.");
   if (!codexPackage.projectTitle) errors.push("projectTitle is required.");
   if (!codexPackage.workItem) errors.push("workItem is required.");
-  if (codexPackage.workItem?.agentRole !== "developer") errors.push("workItem.agentRole must be developer.");
+  if (codexPackage.packageType === "codex-development" && codexPackage.workItem?.agentRole !== "developer") {
+    errors.push("workItem.agentRole must be developer.");
+  }
+  if (codexPackage.packageType === "codex-review" && codexPackage.workItem?.agentRole !== "reviewer") {
+    errors.push("workItem.agentRole must be reviewer.");
+  }
   if (!codexPackage.workItem?.id) errors.push("workItem.id is required.");
   if (!codexPackage.context?.prd) errors.push("context.prd is required.");
   if (!codexPackage.context?.developmentPackage) errors.push("context.developmentPackage is required.");
-  if (!Array.isArray(codexPackage.implementationContract?.scope)) errors.push("implementationContract.scope must be an array.");
-  if (!Array.isArray(codexPackage.implementationContract?.requiredTests)) {
-    errors.push("implementationContract.requiredTests must be an array.");
+  if (codexPackage.packageType === "codex-development") {
+    if (!Array.isArray(codexPackage.implementationContract?.scope)) errors.push("implementationContract.scope must be an array.");
+    if (!Array.isArray(codexPackage.implementationContract?.requiredTests)) {
+      errors.push("implementationContract.requiredTests must be an array.");
+    }
+  }
+  if (codexPackage.packageType === "codex-review") {
+    if (!codexPackage.developerWorkItem) errors.push("developerWorkItem is required.");
+    if (!Array.isArray(codexPackage.reviewContract?.requiredChecks)) errors.push("reviewContract.requiredChecks must be an array.");
+    if (!Array.isArray(codexPackage.reviewContract?.requiredCommands)) errors.push("reviewContract.requiredCommands must be an array.");
   }
   if (codexPackage.resultContract?.format !== "agent-result-json") errors.push("resultContract.format must be agent-result-json.");
   if (errors.length) {
@@ -203,6 +357,31 @@ function resolveDevelopmentWorkItem(workItems, workItem) {
     throw new Error("Only developer work items can be packaged for Codex.");
   }
   return selectedWorkItem;
+}
+
+function resolveReviewWorkItem(workItems, workItem) {
+  const workItemId = typeof workItem === "string" ? workItem : workItem?.id;
+  const selectedWorkItem = workItems.find((item) => item.id === workItemId);
+  if (!selectedWorkItem) {
+    throw new Error(`Unknown workItemId: ${workItemId || ""}`);
+  }
+  if (selectedWorkItem.agentRole !== "reviewer") {
+    throw new Error("Only reviewer work items can be packaged for Codex review.");
+  }
+  return selectedWorkItem;
+}
+
+function resolveLinkedDeveloperWorkItem(workItems, reviewWorkItem) {
+  const developerWorkItemId = Array.isArray(reviewWorkItem.blockedBy) ? reviewWorkItem.blockedBy[0] : "";
+  const developerWorkItem = workItems.find((item) => item.id === developerWorkItemId && item.agentRole === "developer");
+  if (!developerWorkItem) {
+    throw new Error(`Review work item ${reviewWorkItem.id} is not linked to a developer work item.`);
+  }
+  return developerWorkItem;
+}
+
+function findLatestAgentRun(agentRuns, workItemId, agentRole) {
+  return (Array.isArray(agentRuns) ? agentRuns : []).find((run) => run.workItemId === workItemId && run.agentRole === agentRole) || null;
 }
 
 function normalizeValidationRisks(risks) {

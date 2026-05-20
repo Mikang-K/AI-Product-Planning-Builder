@@ -8,6 +8,7 @@ import {
   buildDevelopmentAgentCliCommand,
   buildDevelopmentAgentInput,
   createAutomationRun,
+  createReviewAutomationRun,
   getRunnableDevelopmentWorkItems,
 } from "../src/automation.js";
 import { ensureProjectCollaboration } from "../src/collaboration.js";
@@ -146,9 +147,81 @@ test("applyAgentResultToAutomation updates work item, agent runs, and automation
 
   assert.equal(normalized.status, "pass");
   assert.equal(collaboration.workItems.find((item) => item.id === "work_dev_1").status, "pass");
+  assert.equal(collaboration.workItems.find((item) => item.id === "work_review_dev_1").status, "ready");
   assert.equal(collaboration.agentRuns[0].workItemId, "work_dev_1");
   assert.equal(collaboration.automationRuns[0].status, "completed");
   assert.equal(project.changeLogs[0].changedSection, "Agent Recommendations");
+});
+
+test("reviewer needs_revision result returns linked developer work item to needs_revision", () => {
+  const project = sampleProject();
+  const collaboration = ensureProjectCollaboration(project);
+  collaboration.workItems.find((item) => item.id === "work_dev_1").status = "pass";
+  collaboration.workItems.find((item) => item.id === "work_review_dev_1").status = "in_review";
+
+  applyAgentResultToAutomation(project, {
+    agentRole: "reviewer",
+    workItemId: "work_review_dev_1",
+    status: "needs_revision",
+    findings: ["Missing regression test"],
+    recommendedChanges: ["Add test coverage"],
+    changedFiles: [],
+    tests: ["node --test"],
+    risks: [],
+    approvalGate: "requires_user_decision",
+  });
+
+  assert.equal(collaboration.workItems.find((item) => item.id === "work_review_dev_1").status, "needs_revision");
+  assert.equal(collaboration.workItems.find((item) => item.id === "work_dev_1").status, "needs_revision");
+});
+
+test("createReviewAutomationRun records separate review automation runs", () => {
+  const project = sampleProject();
+  const collaboration = ensureProjectCollaboration(project);
+  collaboration.workItems.find((item) => item.id === "work_dev_1").status = "pass";
+  collaboration.workItems.find((item) => item.id === "work_review_dev_1").status = "ready";
+
+  const run = createReviewAutomationRun(project, "work_review_dev_1", {
+    id: "review_automation_run_test",
+    createdAt: "2026-05-20T00:00:00.000Z",
+  });
+
+  assert.equal(run.agentRole, "reviewer");
+  assert.equal(collaboration.reviewAutomationRuns[0].id, "review_automation_run_test");
+  assert.equal(collaboration.automationRuns.length, 0);
+  assert.equal(collaboration.workItems.find((item) => item.id === "work_review_dev_1").status, "exported");
+});
+
+test("reviewer result updates matching review automation run", () => {
+  const project = sampleProject();
+  const collaboration = ensureProjectCollaboration(project);
+  collaboration.workItems.find((item) => item.id === "work_dev_1").status = "pass";
+  collaboration.workItems.find((item) => item.id === "work_review_dev_1").status = "ready";
+  createReviewAutomationRun(project, "work_review_dev_1", {
+    id: "review_automation_run_test",
+    status: "running",
+    workItemStatus: "in_review",
+  });
+
+  applyAgentResultToAutomation(
+    project,
+    {
+      agentRole: "reviewer",
+      workItemId: "work_review_dev_1",
+      status: "pass",
+      findings: [{ severity: "info", title: "Reviewed" }],
+      recommendedChanges: [],
+      changedFiles: [],
+      tests: ["node --test"],
+      risks: [],
+      approvalGate: "approved",
+    },
+    "review_automation_run_test",
+  );
+
+  assert.equal(collaboration.reviewAutomationRuns[0].status, "completed");
+  assert.equal(collaboration.reviewAutomationRuns[0].resultIds.length, 1);
+  assert.equal(collaboration.automationRuns.length, 0);
 });
 
 test("applyAgentResultToAutomation rejects validator result for developer work item", () => {

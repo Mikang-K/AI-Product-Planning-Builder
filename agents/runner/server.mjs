@@ -109,7 +109,7 @@ async function handleReadCodexRun(res, runId, part) {
 }
 
 function runCodexInBackground(request, paths, status) {
-  const args = buildCodexExecArgs(config, paths);
+  const args = buildCodexExecArgs(config, paths, request.packageType);
   const commandText = `${config.codexBin} ${args.join(" ")}`;
   const child = spawn(config.codexBin, args, {
     cwd: config.workspaceRoot,
@@ -120,13 +120,13 @@ function runCodexInBackground(request, paths, status) {
   child.stdout.pipe(createWriteStream(paths.stdoutPath, { flags: "a" }));
   child.stderr.pipe(createWriteStream(paths.stderrPath, { flags: "a" }));
   child.on("error", async (error) => {
-    await finishRun(paths, status, buildBlockedResult(request.workItemId, error.message, commandText), "failed", error.message);
+    await finishRun(paths, status, buildBlockedResult(request.workItemId, error.message, commandText, request.agentRole), "failed", error.message);
   });
   child.on("close", async (code) => {
     try {
       const rawResult = await readFile(paths.resultPath, "utf8");
       const parsed = parseCodexResultText(rawResult);
-      const normalized = normalizeCodexResultForRunner(parsed, request.workItemId);
+      const normalized = normalizeCodexResultForRunner(parsed, request.workItemId, request.agentRole);
       normalized.codexEvidence ||= { commands: [], notes: [] };
       normalized.codexEvidence.commands ||= [];
       normalized.codexEvidence.notes ||= [];
@@ -134,7 +134,7 @@ function runCodexInBackground(request, paths, status) {
       if (code !== 0) normalized.codexEvidence.notes.push(`Codex exited with code ${code}.`);
       await finishRun(paths, status, normalized, normalized.status === "blocked" || code !== 0 ? "failed" : "completed", "");
     } catch (error) {
-      const blocked = buildBlockedResult(request.workItemId, error.message, commandText);
+      const blocked = buildBlockedResult(request.workItemId, error.message, commandText, request.agentRole);
       await finishRun(paths, status, blocked, "failed", error.message);
     }
   });

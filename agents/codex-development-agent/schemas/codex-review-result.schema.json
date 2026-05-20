@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "required": ["agentRole", "workItemId", "status", "findings", "recommendedChanges", "changedFiles", "tests", "risks", "approvalGate"],
+  "properties": {
+    "agentRole": { "type": "string", "enum": ["reviewer"] },
+    "workItemId": { "type": "string" },
+    "status": { "type": "string", "enum": ["pass", "needs_revision", "blocked"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "properties": {
+              "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] },
+              "file": { "type": "string" },
+              "line": { "type": "number" },
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "recommendation": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "recommendedChanges": { "type": "array" },
+    "changedFiles": { "type": "array" },
+    "tests": { "type": "array" },
+    "risks": { "type": "array" },
+    "approvalGate": { "type": "string", "enum": ["approved", "requires_user_decision"] },
+    "codexEvidence": { "type": "object" }
+  }
+}

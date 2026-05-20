@@ -538,6 +538,34 @@ tr:last-child td {
   color: var(--rose);
 }
 
+.severity-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 0 9px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.severity-pill.critical,
+.severity-pill.high {
+  background: #f9dde2;
+  color: var(--rose);
+}
+
+.severity-pill.medium {
+  background: #fff2d8;
+  color: var(--amber);
+}
+
+.severity-pill.low,
+.severity-pill.info {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .metric-list,
 .simple-list {
   display: grid;
@@ -554,6 +582,51 @@ tr:last-child td {
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
+}
+
+.finding-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding-item {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--surface);
+}
+
+.finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.finding-head code {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.finding-item p {
+  margin: 0;
+}
+
+.finding-recommendation {
+  display: grid;
+  gap: 3px;
+}
+
+.finding-recommendation span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .log-item {

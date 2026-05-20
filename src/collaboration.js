@@ -1,12 +1,17 @@
 import { deepClone, id, now } from "./utils.js";
+import { normalizeFindings } from "./findings.js";
 
 export function ensureProjectCollaboration(project) {
   project.collaboration ||= {};
   project.collaboration.workItems = mergeGeneratedWorkItems(
     Array.isArray(project.collaboration.workItems) ? project.collaboration.workItems : [],
-    [...buildDevelopmentWorkItems(project), ...buildValidationWorkItems(project)],
+    [...buildDevelopmentWorkItems(project), ...buildValidationWorkItems(project), ...buildReviewWorkItems(project)],
   );
   project.collaboration.agentRuns = Array.isArray(project.collaboration.agentRuns) ? project.collaboration.agentRuns : [];
+  project.collaboration.automationRuns = Array.isArray(project.collaboration.automationRuns) ? project.collaboration.automationRuns : [];
+  project.collaboration.reviewAutomationRuns = Array.isArray(project.collaboration.reviewAutomationRuns)
+    ? project.collaboration.reviewAutomationRuns
+    : [];
   project.collaboration.approvals = Array.isArray(project.collaboration.approvals) ? project.collaboration.approvals : [];
   project.collaboration.updatedAt ||= project.updatedAt || now();
   return project.collaboration;
@@ -34,6 +39,8 @@ export function buildCollaborationPackage(project) {
     },
     workItems: collaboration.workItems,
     agentRuns: collaboration.agentRuns,
+    automationRuns: collaboration.automationRuns,
+    reviewAutomationRuns: collaboration.reviewAutomationRuns,
     approvals: collaboration.approvals,
     reviewChecklist: [
       "Confirm any MVP scope changes before applying them.",
@@ -133,6 +140,48 @@ export function buildValidationWorkItems(project) {
   ];
 }
 
+export function buildReviewWorkItems(project) {
+  const developmentItems = buildDevelopmentWorkItems(project);
+  return developmentItems.map((developerItem, index) => ({
+    id: `work_review_dev_${index + 1}`,
+    agentRole: "reviewer",
+    source: "development.review",
+    title: `Review implementation for ${developerItem.id}`,
+    description: "Review code changes, verification evidence, scope compliance, and regression risk.",
+    status: "draft",
+    priority: developerItem.priority || "medium",
+    inputArtifacts: ["prd", "development.tasks", "agentRuns", "changedFiles", "codexEvidence"],
+    acceptanceCriteria: [
+      "Implementation matches the selected development work item scope.",
+      "Changed files and verification evidence are reviewed.",
+      "Findings include file-level references when possible.",
+      "Approval gate is marked approved or requires_user_decision.",
+    ],
+    blockedBy: [developerItem.id],
+    expectedOutput: {
+      agentRole: "reviewer",
+      workItemId: `work_review_dev_${index + 1}`,
+      status: "pass|needs_revision|blocked",
+      findings: [
+        {
+          severity: "high|medium|low|info",
+          file: "src/example.js",
+          line: 1,
+          title: "string",
+          description: "string",
+          recommendation: "string",
+        },
+      ],
+      recommendedChanges: [],
+      tests: [],
+      risks: [],
+      approvalGate: "approved|requires_user_decision",
+    },
+    createdAt: project.createdAt || now(),
+    updatedAt: project.updatedAt || now(),
+  }));
+}
+
 export function mergeGeneratedWorkItems(existingItems, generatedItems) {
   const generatedIds = new Set(generatedItems.map((item) => item.id));
   const existingById = new Map(existingItems.map((item) => [item.id, item]));
@@ -181,8 +230,8 @@ export function normalizeAgentResult(result, collaboration) {
   const agentRole = String(result.agentRole || "").trim();
   const workItemId = String(result.workItemId || "").trim();
   const status = String(result.status || "").trim();
-  if (!["developer", "validator"].includes(agentRole)) {
-    throw new Error("agentRole must be developer or validator.");
+  if (!["developer", "validator", "reviewer"].includes(agentRole)) {
+    throw new Error("agentRole must be developer, validator, or reviewer.");
   }
   if (!workItemStatuses().includes(status) || !["pass", "needs_revision", "blocked"].includes(status)) {
     throw new Error("status must be pass, needs_revision, or blocked.");
@@ -200,7 +249,7 @@ export function normalizeAgentResult(result, collaboration) {
     workItemId,
     agentRole,
     status,
-    findings: normalizeStringArray(result.findings),
+    findings: normalizeFindings(result.findings),
     recommendedChanges: normalizeStringArray(result.recommendedChanges),
     changedFiles: normalizeStringArray(result.changedFiles),
     tests: normalizeStringArray(result.tests),

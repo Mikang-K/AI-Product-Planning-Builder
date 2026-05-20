@@ -626,3 +626,145 @@ Recommended next pass:
 2. Move project feedback orchestration into an action/service boundary.
 3. Continue Korean mojibake cleanup inside generated artifact copy and older docs.
 4. Run browser smoke verification against the static app.
+
+## 23. Code Review Agent Implementation Status
+
+Completed:
+
+- Added a new `reviewer` agent role.
+- Added generated code review work items linked to development work items:
+  - `work_review_dev_1`
+  - `work_review_dev_2`
+  - etc.
+- Review work items are generated from development work items and use `blockedBy` to point to the source developer work item.
+- Developer `pass` results automatically move the linked review work item from `draft` or `blocked` to `ready`.
+- Reviewer `needs_revision` results automatically move the linked developer work item back to `needs_revision`.
+- Extended Agent Result normalization to accept `reviewer`.
+- Added Codex review workflow helpers:
+  - `buildCodexReviewPackage`
+  - `buildCodexReviewPrompt`
+- Added runner support for `codex-review` packages and reviewer result normalization.
+- Added reviewer output schema:
+  - `agents/codex-development-agent/schemas/codex-review-result.schema.json`
+- Added Collaboration Board UI support:
+  - Code Review Work Items section
+  - Review package export
+  - Review prompt / runner start
+  - reviewer-only collaboration package export
+- Added test coverage for collaboration, automation, Codex review packages, and runner review support.
+
+Verification:
+
+```powershell
+node --check src/main.js
+node --check src/codexWorkflow.js
+node --check src/collaboration.js
+node --check src/automation.js
+node --check agents/runner/runner-lib.mjs
+node --test
+```
+
+Current test count:
+
+```text
+63 passing
+```
+
+Recommended next pass:
+
+1. Add a dedicated `agents/code-review-agent/` local file-based scaffold if non-Codex review handoff is needed.
+2. Add structured review findings with `severity`, `file`, `line`, `title`, and `recommendation`.
+3. Track review automation runs separately from development automation runs.
+4. Add browser smoke verification for the new Review buttons.
+
+## 24. Structured Review Findings Status
+
+Completed:
+
+- Added structured review finding normalization in `src/findings.js`.
+- Preserved backward compatibility with legacy string findings.
+- Supported structured finding fields:
+  - `severity`
+  - `file`
+  - `line`
+  - `title`
+  - `description`
+  - `recommendation`
+- Updated Agent Result normalization to preserve structured findings.
+- Updated Codex review prompt output example to request structured findings.
+- Updated runner result normalization so Codex review results keep structured finding objects.
+- Updated reviewer result schema to allow string or structured finding entries.
+- Updated UI rendering for imported agent results to display structured findings as compact review lines.
+- Added tests in `test/findings.test.mjs`.
+
+Verification:
+
+```powershell
+node --check src/main.js
+node --check src/findings.js
+node --check src/codexWorkflow.js
+node --check agents/runner/runner-lib.mjs
+node --test
+```
+
+Current test count:
+
+```text
+65 passing
+```
+
+Recommended next pass:
+
+1. Render structured review findings as richer UI rows grouped by severity.
+2. Add severity filtering on the Collaboration Board.
+3. Track review automation runs separately from development automation runs.
+4. Add browser smoke verification for review import and display.
+
+## 25. Review Workflow UX and Local Agent Status
+
+Completed:
+
+- Rendered structured review findings as richer UI items with:
+  - severity badge
+  - file and line location
+  - title
+  - description
+  - recommendation
+- Added `findingSeverity()` and richer finding formatting support in `src/findings.js`.
+- Added review automation run separation:
+  - development runs remain in `collaboration.automationRuns`
+  - review runs now use `collaboration.reviewAutomationRuns`
+- Added `createReviewAutomationRun()` in `src/automation.js`.
+- Updated review Codex package export/start flow to create review automation runs.
+- Added a separate "Code Review Automation Runs" section in the Collaboration Board.
+- Added local file-based code review agent scaffold:
+  - `agents/code-review-agent/README.md`
+  - `agents/code-review-agent/schemas/review-work-item.schema.json`
+  - `agents/code-review-agent/schemas/review-result.schema.json`
+  - `agents/code-review-agent/scripts/code-review-agent-lib.mjs`
+  - `agents/code-review-agent/scripts/validate-input.mjs`
+  - `agents/code-review-agent/scripts/create-result-template.mjs`
+- Added tests for review automation runs and the local code review agent scaffold.
+
+Verification:
+
+```powershell
+node --check src/main.js
+node --check src/automation.js
+node --check agents/code-review-agent/scripts/code-review-agent-lib.mjs
+node --check agents/code-review-agent/scripts/validate-input.mjs
+node --test
+```
+
+Current test count:
+
+```text
+70 passing
+```
+
+Recommended next pass:
+
+1. Add severity filtering controls for imported review findings.
+2. Add browser smoke verification for review package export, prompt start, result import, and finding display.
+3. Add examples for `agents/code-review-agent`.
+4. Consider splitting Collaboration Board rendering into its own renderer module.

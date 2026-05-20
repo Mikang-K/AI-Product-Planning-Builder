@@ -6,6 +6,7 @@ import {
 import { deepClone, id, now } from "./utils.js";
 
 const runnableDeveloperStatuses = ["ready", "exported", "needs_revision"];
+const runnableReviewerStatuses = ["ready", "exported", "needs_revision"];
 const terminalAutomationStatuses = ["completed", "failed", "cancelled"];
 
 export function automationRunStatuses() {
@@ -49,6 +50,44 @@ export function createAutomationRun(project, workItemIds, options = {}) {
   };
 
   collaboration.automationRuns.unshift(run);
+  selectedItems.forEach((item) => {
+    if (options.markWorkItems !== false && (options.workItemStatus || item.status === "ready")) {
+      item.status = options.workItemStatus || "exported";
+      item.updatedAt = createdAt;
+    }
+  });
+  collaboration.updatedAt = createdAt;
+  project.updatedAt = createdAt;
+  return run;
+}
+
+export function createReviewAutomationRun(project, workItemIds, options = {}) {
+  const collaboration = ensureAutomationState(project);
+  const ids = normalizeWorkItemIds(workItemIds);
+  if (!ids.length) {
+    throw new Error("At least one review work item id is required.");
+  }
+
+  const selectedItems = ids.map((workItemId) => findReviewWorkItem(collaboration, workItemId));
+  const blockedItem = selectedItems.find((item) => !runnableReviewerStatuses.includes(item.status));
+  if (blockedItem) {
+    throw new Error(`Review work item ${blockedItem.id} is not runnable from status ${blockedItem.status}.`);
+  }
+  const createdAt = options.createdAt || now();
+  const run = {
+    id: options.id || id("review_automation_run"),
+    projectId: project.id,
+    agentRole: "reviewer",
+    status: options.status || "queued",
+    workItemIds: selectedItems.map((item) => item.id),
+    createdAt,
+    startedAt: null,
+    completedAt: null,
+    resultIds: [],
+    error: "",
+  };
+
+  collaboration.reviewAutomationRuns.unshift(run);
   selectedItems.forEach((item) => {
     if (options.markWorkItems !== false && (options.workItemStatus || item.status === "ready")) {
       item.status = options.workItemStatus || "exported";
@@ -111,6 +150,7 @@ export function applyAgentResultToAutomation(project, result, runId = "") {
   workItem.status = normalized.status;
   workItem.updatedAt = normalized.importedAt;
   collaboration.agentRuns.unshift(normalized);
+  applyLinkedReviewState(collaboration, normalized);
   updateMatchingAutomationRun(collaboration, normalized, runId);
   collaboration.updatedAt = normalized.importedAt;
   project.updatedAt = normalized.importedAt;
@@ -138,6 +178,29 @@ export function applyAgentResultToAutomation(project, result, runId = "") {
   return normalized;
 }
 
+function applyLinkedReviewState(collaboration, normalized) {
+  if (normalized.agentRole === "developer") {
+    const reviewItem = collaboration.workItems.find(
+      (item) => item.agentRole === "reviewer" && Array.isArray(item.blockedBy) && item.blockedBy.includes(normalized.workItemId),
+    );
+    if (reviewItem && normalized.status === "pass" && ["draft", "blocked"].includes(reviewItem.status)) {
+      reviewItem.status = "ready";
+      reviewItem.updatedAt = normalized.importedAt;
+    }
+    return;
+  }
+
+  if (normalized.agentRole === "reviewer" && normalized.status === "needs_revision") {
+    const reviewItem = collaboration.workItems.find((item) => item.id === normalized.workItemId);
+    const developerWorkItemId = Array.isArray(reviewItem?.blockedBy) ? reviewItem.blockedBy[0] : "";
+    const developerItem = collaboration.workItems.find((item) => item.id === developerWorkItemId && item.agentRole === "developer");
+    if (developerItem) {
+      developerItem.status = "needs_revision";
+      developerItem.updatedAt = normalized.importedAt;
+    }
+  }
+}
+
 export function buildDevelopmentAgentCliCommand(packageFile = "package.json", workItemFile = "work-item.json", resultFile = "result.json") {
   return [
     `node agents\\development-agent\\scripts\\validate-input.mjs ${packageFile} ${workItemFile}`,
@@ -148,6 +211,7 @@ export function buildDevelopmentAgentCliCommand(packageFile = "package.json", wo
 function ensureAutomationState(project) {
   const collaboration = ensureProjectCollaboration(project);
   collaboration.automationRuns = Array.isArray(collaboration.automationRuns) ? collaboration.automationRuns : [];
+  collaboration.reviewAutomationRuns = Array.isArray(collaboration.reviewAutomationRuns) ? collaboration.reviewAutomationRuns : [];
   return collaboration;
 }
 
@@ -168,6 +232,20 @@ function findDevelopmentWorkItem(collaboration, workItemId) {
   return workItem;
 }
 
+function findReviewWorkItem(collaboration, workItemId) {
+  const workItem = collaboration.workItems.find((item) => item.id === workItemId);
+  if (!workItem) {
+    throw new Error(`Unknown review workItemId: ${workItemId}`);
+  }
+  if (workItem.agentRole !== "reviewer") {
+    throw new Error("Only reviewer work items can be automated by the review agent.");
+  }
+  if (hasOpenBlocker(collaboration, workItem)) {
+    throw new Error(`Review work item ${workItem.id} has open blockers.`);
+  }
+  return workItem;
+}
+
 function resolveWorkItem(workItems, workItem) {
   const workItemId = typeof workItem === "string" ? workItem : workItem?.id;
   return workItems.find((item) => item.id === workItemId);
@@ -182,9 +260,10 @@ function hasOpenBlocker(collaboration, workItem) {
 }
 
 function updateMatchingAutomationRun(collaboration, normalized, runId) {
+  const runs = normalized.agentRole === "reviewer" ? collaboration.reviewAutomationRuns || [] : collaboration.automationRuns || [];
   const run =
-    (runId && collaboration.automationRuns.find((item) => item.id === runId)) ||
-    collaboration.automationRuns.find(
+    (runId && runs.find((item) => item.id === runId)) ||
+    runs.find(
       (item) =>
         item.agentRole === normalized.agentRole &&
         item.workItemIds.includes(normalized.workItemId) &&

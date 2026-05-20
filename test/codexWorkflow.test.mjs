@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {
   buildCodexDevelopmentPackage,
   buildCodexPrompt,
+  buildCodexReviewPackage,
+  buildCodexReviewPrompt,
   convertCodexResultToAgentResult,
   normalizeCodexResult,
   validateCodexPackage,
@@ -67,6 +69,38 @@ test("buildCodexDevelopmentPackage rejects validator work items", () => {
   );
 });
 
+test("buildCodexReviewPackage creates a valid review package", () => {
+  const project = sampleProject();
+  const collaboration = ensureProjectCollaboration(project);
+  collaboration.agentRuns.unshift({
+    agentRole: "developer",
+    workItemId: "work_dev_1",
+    status: "pass",
+    changedFiles: ["src/example.js"],
+    tests: ["node --test"],
+  });
+  const pkg = buildCodexReviewPackage(project, "work_review_dev_1", {
+    createdAt: "2026-05-19T00:00:00.000Z",
+  });
+
+  assert.equal(pkg.packageType, "codex-review");
+  assert.equal(pkg.workItem.agentRole, "reviewer");
+  assert.equal(pkg.developerWorkItem.id, "work_dev_1");
+  assert.equal(pkg.developerResult.workItemId, "work_dev_1");
+  assert.equal(validateCodexPackage(pkg), true);
+});
+
+test("buildCodexReviewPrompt includes reviewer output contract", () => {
+  const project = sampleProject();
+  const pkg = buildCodexReviewPackage(project, "work_review_dev_1");
+  const prompt = buildCodexReviewPrompt(pkg);
+
+  assert.match(prompt, /# Codex Code Review Task/);
+  assert.match(prompt, /"agentRole": "reviewer"/);
+  assert.match(prompt, /"severity": "high"/);
+  assert.match(prompt, /work_review_dev_1/);
+});
+
 test("buildCodexPrompt includes PRD, work item, and output contract", () => {
   const project = sampleProject();
   const pkg = buildCodexDevelopmentPackage(project, "work_dev_1");
@@ -125,6 +159,31 @@ test("convertCodexResultToAgentResult returns Product Builder compatible result"
 
   assert.equal(agentResult.status, "needs_revision");
   assert.deepEqual(agentResult.tests, ["node --test"]);
+});
+
+test("convertCodexResultToAgentResult accepts reviewer results", () => {
+  const agentResult = convertCodexResultToAgentResult({
+    agentRole: "reviewer",
+    workItemId: "work_review_dev_1",
+    status: "pass",
+    findings: [
+      {
+        severity: "info",
+        file: "src/main.js",
+        title: "Looks good",
+        recommendation: "No change needed.",
+      },
+    ],
+    recommendedChanges: [],
+    changedFiles: [],
+    tests: ["node --test"],
+    risks: [],
+    approvalGate: "approved",
+  });
+
+  assert.equal(agentResult.agentRole, "reviewer");
+  assert.equal(agentResult.status, "pass");
+  assert.equal(agentResult.findings[0].severity, "info");
 });
 
 test("Codex result import preserves codexEvidence in agent runs", () => {

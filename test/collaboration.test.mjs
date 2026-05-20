@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildCollaborationPackage,
   buildDevelopmentWorkItems,
+  buildReviewWorkItems,
   ensureProjectCollaboration,
   mergeGeneratedWorkItems,
   normalizeAgentResult,
@@ -61,7 +62,18 @@ test("ensureProjectCollaboration adds generated work items", () => {
   const project = sampleProject();
   const collaboration = ensureProjectCollaboration(project);
   assert.ok(collaboration.workItems.some((item) => item.id === "work_dev_1"));
+  assert.ok(collaboration.workItems.some((item) => item.id === "work_review_dev_1"));
   assert.ok(collaboration.workItems.some((item) => item.id === "work_val_risk_1"));
+});
+
+test("buildReviewWorkItems links review items to developer work items", () => {
+  const items = buildReviewWorkItems(sampleProject());
+  assert.deepEqual(
+    items.map((item) => item.id),
+    ["work_review_dev_1", "work_review_dev_2"],
+  );
+  assert.deepEqual(items[0].blockedBy, ["work_dev_1"]);
+  assert.equal(items[0].agentRole, "reviewer");
 });
 
 test("buildCollaborationPackage includes handoff inputs", () => {
@@ -102,4 +114,30 @@ test("normalizeAgentResult accepts valid pass results", () => {
   assert.equal(result.status, "pass");
   assert.equal(result.findings[0], "Done");
   assert.equal(result.recommendedChanges[0], "Add tests");
+});
+
+test("normalizeAgentResult accepts reviewer results for review work items", () => {
+  const collaboration = ensureProjectCollaboration(sampleProject());
+  const result = normalizeAgentResult(
+    {
+      agentRole: "reviewer",
+      workItemId: "work_review_dev_1",
+      status: "needs_revision",
+      findings: [
+        {
+          severity: "high",
+          file: "src/example.js",
+          line: 12,
+          title: "Missing regression test",
+          recommendation: "Add a focused test.",
+        },
+      ],
+      recommendedChanges: ["Add coverage"],
+    },
+    collaboration,
+  );
+  assert.equal(result.agentRole, "reviewer");
+  assert.equal(result.status, "needs_revision");
+  assert.equal(result.findings[0].severity, "high");
+  assert.equal(result.findings[0].file, "src/example.js");
 });
