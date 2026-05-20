@@ -581,3 +581,48 @@ Recommended next pass:
 2. Move `migrateProjectArtifacts()` after artifact extraction.
 3. Add tests for artifact fallback and quality report generation.
 4. Run browser smoke verification.
+
+## 22. Fourth Refactor Pass Status
+
+Completed in this implementation pass:
+
+- Extracted artifact builders, normalization, PRD generation, quality report generation, and artifact migration into `src/artifacts.js`.
+- Added focused artifact tests in `test/artifacts.test.mjs`.
+- Extracted local planning and feedback logic into `src/engines/plannerEngine.js`.
+- Extracted LLM endpoint allowlist, JSON request handling, and response parsing into `src/engines/llmClient.js`.
+- Extracted LLM orchestration and prompt message builders into `src/engines/llmEngine.js`.
+- Added engine tests in `test/engines.test.mjs`.
+- Removed the legacy root `app.js` snapshot after confirming `index.html` loads `src/main.js`.
+- Added `src/actions.js` for project and work item state updates.
+- Added action tests in `test/actions.test.mjs`.
+- Extracted initial renderer helpers:
+  - `src/render/projectList.js`
+  - `src/render/tabs.js`
+- Added renderer tests in `test/render.test.mjs`.
+- Rewrote `index.html` with valid UTF-8 Korean UI copy and fixed malformed button/label markup.
+- Replaced top-level tab and progress labels in `src/main.js` with readable Korean.
+
+Verification:
+
+```powershell
+node --check src/main.js
+node --check src/artifacts.js
+node --check src/actions.js
+node --check src/engines/plannerEngine.js
+node --check src/engines/llmClient.js
+node --check src/engines/llmEngine.js
+node --test
+```
+
+Current test count:
+
+```text
+53 passing
+```
+
+Recommended next pass:
+
+1. Continue renderer extraction for artifact tab groups.
+2. Move project feedback orchestration into an action/service boundary.
+3. Continue Korean mojibake cleanup inside generated artifact copy and older docs.
+4. Run browser smoke verification against the static app.
