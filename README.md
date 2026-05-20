@@ -1,153 +1,150 @@
 # AI Product Planning Builder
 
-제품 아이디어를 기획 산출물로 구조화하고, 개발 work item을 Codex 실행까지 연결하는 브라우저 기반 Product Builder입니다.  
-단순 PRD 생성 도구가 아니라 **기획 → 개발 작업 분해 → Codex 구현 실행 → 결과 반영**까지 이어지는 에이전트 협업 워크플로우를 목표로 합니다.
+아이디어를 PRD, 개발 작업, Codex 실행, 코드 리뷰, 검증 결과 반영까지 연결하는 브라우저 기반 Product Builder입니다.
 
-## Overview
+단순한 PRD 생성기가 아니라, 제품 기획 산출물을 개발 가능한 work item으로 분해하고, Codex 실행 결과와 코드 리뷰 결과를 다시 Collaboration Board에 반영하는 로컬 에이전트 워크플로우 도구입니다.
 
-이 프로젝트는 초기 제품 아이디어를 입력받아 다음 산출물을 생성합니다.
+## Portfolio Summary
 
-- Product Package
-- PRD
-- Development Package
-- Validation Package
-- Agent Package
-- Agent Collaboration Board
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 유형 | AI 기반 제품 기획 및 개발 에이전트 워크플로우 빌더 |
+| 핵심 목표 | 제품 아이디어를 실행 가능한 개발/검증/리뷰 작업으로 전환 |
+| 구현 범위 | 기획 산출물 생성, PRD 생성, work item 관리, Codex handoff, runner 실행, 결과 import, 코드 리뷰 에이전트 |
+| 기술 스택 | HTML, CSS, Vanilla JavaScript ES Modules, Node.js |
+| 저장 방식 | Browser localStorage |
+| 테스트 | Node built-in test runner |
+| 현재 테스트 | 70 passing |
+| 실행 방식 | 정적 UI 또는 Node 기반 Local Runner |
 
-이후 Agent Collaboration Board에서 개발/검증 작업을 work item으로 분리하고, 개발 work item은 Development Agent 또는 Codex Runner로 넘길 수 있습니다.
+## Problem
+
+초기 제품 아이디어는 보통 다음 단계로 넘어가며 맥락이 손실됩니다.
+
+- 기획 문서는 개발 작업으로 잘게 나뉘지 않는다.
+- PRD, 개발 태스크, 검증 기준, 리뷰 결과가 서로 분리되어 관리된다.
+- Codex 같은 개발 에이전트에 넘길 때 필요한 입력 계약이 매번 새로 작성된다.
+- 개발 결과가 다시 기획/검증 보드로 반영되지 않는다.
+- 코드 리뷰 결과가 구조화되지 않아 후속 수정 상태를 추적하기 어렵다.
+
+이 프로젝트는 이 흐름을 하나의 브라우저 앱 안에서 연결하는 것을 목표로 합니다.
+
+## Solution
 
 ```text
 Idea
   -> Product Planning Artifacts
-  -> Development / Validation Work Items
-  -> Codex Development Package
+  -> Development / Validation / Review Work Items
+  -> Codex Development or Review Package
   -> Local Codex Runner
   -> Agent Result JSON
   -> Collaboration Board Update
 ```
 
-## Tech Stack
+사용자는 아이디어를 입력하고, 앱은 다음 산출물을 생성합니다.
 
-| Area | Stack |
-| --- | --- |
-| Frontend | HTML, CSS, Vanilla JavaScript ES Modules |
-| Runtime | Browser, Node.js |
-| Storage | Browser localStorage |
-| Testing | Node built-in test runner |
-| LLM Integration | OpenAI Chat Completions API compatible endpoint |
-| Agent Execution | Codex CLI via local Node Runner |
-| Automation | File-based JSON handoff, local HTTP API |
-
-별도 프론트엔드 프레임워크나 빌드 도구 없이 정적 앱으로 동작하도록 구성했습니다. 핵심 도메인 로직은 `src/*` 모듈로 분리하고 Node 테스트로 검증합니다.
+- Product Package
+- PRD Markdown
+- Development Package
+- Validation Package
+- Agent Package
+- Agent Collaboration Board
+- Codex Development Package
+- Codex Review Package
 
 ## Key Features
 
-- 제품 아이디어 기반 기획 산출물 생성
-- PRD Markdown 생성
-- Development Package 생성
-  - 기술 설계
-  - 데이터 모델
-  - API 명세
-  - 개발 작업 목록
-- Validation Package 생성
-  - 리스크
-  - MVP 적정성
-  - 출시 전 체크리스트
-- Agent Collaboration Board
-  - 개발/검증 work item 관리
-  - 상태 전이 관리
-  - Agent Result JSON 가져오기
-- Codex Development Workflow
-  - Codex Package 생성
-  - Codex Prompt 생성
-  - Local Runner를 통한 `codex exec` 실행
-  - 실행 결과 자동 반영
-- 프로젝트 저장/import/export
-- 결정 로그, 변경 로그, 버전 비교
-- API Key localStorage 저장 방지
+### 1. Product Planning
 
-## Architecture
+제품 아이디어를 구조화된 기획 산출물로 변환합니다.
 
-```text
-index.html
-styles.css
-src/
-  main.js              Browser app, rendering, events
-  storage.js           localStorage and file download helpers
-  schemas.js           Package schema validation
-  collaboration.js     Work items and Agent Result normalization
-  automation.js        Automation runs and result application
-  codexWorkflow.js     Codex package, prompt, result contract
+- 아이디어 진단
+- 보완 질문
+- 핵심 가정
+- MVP 범위
+- 사용자 시나리오
+- 실험 계획
+- PRD 생성
+- 품질 리포트 생성
 
-agents/
-  development-agent/   File-based development agent MVP
-  codex-development-agent/
-                       Codex package/prompt/result schemas and CLI helpers
-  runner/              Local HTTP server and codex exec bridge
+LLM API를 사용할 수 있으며, 실패 시 로컬 `PlannerEngine`으로 fallback합니다.
 
-test/                  Node unit tests
-docs/plan/             Implementation and refactoring plans
+### 2. Development Work Item
+
+Development Package를 기반으로 개발 작업을 생성합니다.
+
+- 안정적인 work item ID 생성
+- 개발 태스크별 acceptance criteria 제공
+- 개발 agent 입력 패키지 생성
+- Codex 개발 패키지 및 프롬프트 생성
+- 개발 결과 import
+
+예시 work item:
+
+```json
+{
+  "id": "work_dev_1",
+  "agentRole": "developer",
+  "status": "ready",
+  "source": "development.tasks",
+  "acceptanceCriteria": [
+    "Implementation follows the generated PRD and development package.",
+    "Changed files and verification steps are reported.",
+    "Risks or blockers are explicitly listed."
+  ]
+}
 ```
 
-## Workflow
+### 3. Code Review Agent
 
-### 1. Planning
+개발 결과를 검토하는 별도 `reviewer` 역할을 추가했습니다.
 
-사용자가 제품 아이디어를 입력하면 Product Builder가 기획 산출물을 생성합니다.
-
-```text
-Idea
-  -> Questions
-  -> Assumptions
-  -> MVP Scope
-  -> Scenario
-  -> Experiment Plan
-  -> PRD
-  -> Development Package
-  -> Validation Package
-```
-
-LLM API를 사용할 수 있으며, 실패 시 로컬 생성 엔진으로 fallback합니다.
-
-### 2. Work Item Generation
-
-Development Package와 Validation Package를 기반으로 Agent Collaboration Board가 생성됩니다.
-
-work item 상태 흐름:
+개발 work item마다 연결된 review work item이 생성됩니다.
 
 ```text
-ready
-  -> exported
-  -> in_review
-  -> pass | needs_revision | blocked
+work_dev_1
+  -> work_review_dev_1
 ```
 
-실행 가능한 developer work item 상태:
+상태 연동:
 
 ```text
-ready
-exported
-needs_revision
+developer pass
+  -> linked review item ready
+
+reviewer needs_revision
+  -> linked developer item needs_revision
 ```
 
-`in_review` 상태는 중복 실행 방지를 위해 자동 실행 대상에서 제외됩니다.
+리뷰 결과는 문자열뿐 아니라 구조화된 finding을 지원합니다.
 
-### 3. Codex Handoff
+```json
+{
+  "severity": "high",
+  "file": "src/example.js",
+  "line": 12,
+  "title": "Missing regression test",
+  "description": "The changed behavior is not covered.",
+  "recommendation": "Add a focused test before approval."
+}
+```
 
-developer work item은 Codex 작업으로 넘길 수 있습니다.
+UI에서는 severity badge, file:line, title, description, recommendation으로 분리해 표시합니다.
 
-UI에서 가능한 액션:
+### 4. Validation Work Item
 
-- `Codex Package`: Codex용 JSON 작업 패키지 생성
-- `Codex Prompt`: Codex용 Markdown 프롬프트 생성
-- `Codex 시작`: 다음 실행 가능한 developer work item을 Codex로 전달
-- `생성 후 Codex Prompt 만들기`: 기획 산출물 생성 직후 Codex handoff 실행
+제품/기획 관점의 검증 work item도 함께 생성합니다.
 
-Runner가 실행 중이면 실제 `codex exec`를 호출하고, Runner가 없으면 Prompt Markdown 다운로드로 fallback합니다.
+- 리스크 검토
+- MVP 적정성 검토
+- 출시 체크리스트 검토
+- 사용자 의사결정이 필요한 항목 표시
 
-### 4. Codex Execution
+`validator`는 제품 검증 역할, `reviewer`는 코드 검토 역할로 분리했습니다.
 
-Local Runner는 Codex CLI를 비대화식으로 실행합니다.
+### 5. Codex Runner
+
+Node 기반 Local Runner가 Codex CLI 실행을 연결합니다.
 
 ```text
 Product Builder UI
@@ -158,179 +155,302 @@ Product Builder UI
   -> Product Builder auto import
 ```
 
-Codex 실행 결과는 Agent Result JSON으로 정규화됩니다.
+지원 package type:
+
+- `codex-development`
+- `codex-review`
+
+Runner가 없거나 실행할 수 없는 경우에는 prompt markdown 다운로드로 fallback합니다.
+
+### 6. Result Import
+
+Agent Result JSON을 import하면 Collaboration Board가 갱신됩니다.
+
+반영 항목:
+
+- work item status
+- agentRuns
+- automationRuns
+- reviewAutomationRuns
+- decisionLogs
+- changeLogs
+- codexEvidence
+
+예시:
+
+```json
+{
+  "agentRole": "reviewer",
+  "workItemId": "work_review_dev_1",
+  "status": "needs_revision",
+  "findings": [
+    {
+      "severity": "high",
+      "file": "src/main.js",
+      "line": 42,
+      "title": "Missing state persistence",
+      "recommendation": "Call saveState after the status update."
+    }
+  ],
+  "recommendedChanges": ["Add regression coverage."],
+  "changedFiles": [],
+  "tests": ["node --test"],
+  "risks": [],
+  "approvalGate": "requires_user_decision"
+}
+```
+
+## Architecture
+
+```text
+index.html
+styles.css
+
+src/
+  main.js                    Browser UI, events, rendering orchestration
+  actions.js                 Project and work item state actions
+  artifacts.js               PRD, packages, quality report, artifact migration
+  automation.js              Development/review automation runs and result application
+  codexWorkflow.js           Codex package, prompt, result contract
+  collaboration.js           Work item generation and agent result normalization
+  findings.js                Structured review finding normalization and formatting
+  schemas.js                 Lightweight schema validation
+  storage.js                 localStorage and import/export helpers
+  utils.js                   Shared utility functions
+
+src/engines/
+  plannerEngine.js           Local planning engine
+  llmClient.js               LLM endpoint allowlist and JSON request handling
+  llmEngine.js               LLM orchestration for planning and feedback
+
+src/render/
+  projectList.js             Project list renderer
+  tabs.js                    Tab renderer
+
+agents/
+  development-agent/         File-based developer agent MVP
+  code-review-agent/         File-based code review agent MVP
+  codex-development-agent/   Codex schemas and prompt helpers
+  runner/                    Local HTTP server and codex exec bridge
+
+test/
+  *.test.mjs                 Node built-in test runner coverage
+
+docs/plan/
+  refactoring-plan.md        Refactoring and implementation history
+```
+
+## Workflow Detail
+
+### 1. 기획 생성
+
+```text
+Idea
+  -> Diagnosis
+  -> Questions
+  -> Assumptions
+  -> MVP
+  -> Scenario
+  -> Experiment
+  -> PRD
+```
+
+### 2. 개발 작업 분해
+
+```text
+Development Package
+  -> work_dev_1
+  -> work_dev_2
+  -> ...
+```
+
+### 3. 코드 리뷰 작업 생성
+
+```text
+work_dev_1
+  -> work_review_dev_1
+
+work_dev_2
+  -> work_review_dev_2
+```
+
+### 4. Codex Handoff
+
+```text
+Work Item
+  -> Codex Package
+  -> Codex Prompt
+  -> Runner or Markdown fallback
+```
+
+### 5. 결과 반영
+
+```text
+Agent Result JSON
+  -> Import Result
+  -> Work Item Status Update
+  -> Logs Update
+  -> Review/Revision Flow
+```
+
+## How To Run
+
+### Full Workflow with Local Runner
+
+```powershell
+node agents\runner\server.mjs
+```
+
+Open:
+
+```text
+http://127.0.0.1:4173/index.html
+```
+
+### Static UI Only
+
+```powershell
+python -m http.server 4173
+```
+
+Open:
+
+```text
+http://127.0.0.1:4173/index.html
+```
+
+Static mode에서는 Codex 실행 대신 prompt 다운로드 중심으로 사용할 수 있습니다.
+
+## Manual Feature Test
+
+### 1. Product Planning
+
+1. 브라우저에서 앱 접속
+2. 아이디어 입력
+3. `기획 산출물 생성` 클릭
+4. PRD, 개발, 검증, 에이전트 탭 확인
+
+### 2. Developer Result Import
 
 ```json
 {
   "agentRole": "developer",
   "workItemId": "work_dev_1",
   "status": "pass",
-  "findings": [],
+  "findings": ["Implemented basic change"],
   "recommendedChanges": [],
-  "changedFiles": [],
-  "tests": [],
+  "changedFiles": ["src/example.js"],
+  "tests": ["node --test"],
   "risks": [],
-  "approvalGate": "approved",
-  "codexEvidence": {
-    "commands": [],
-    "notes": []
-  }
+  "approvalGate": "approved"
 }
 ```
 
-### 5. Result Import
+기대 결과:
 
-결과 JSON이 반영되면 다음 데이터가 갱신됩니다.
+- `work_dev_1` 상태가 `Pass`
+- `work_review_dev_1` 상태가 `Ready`
 
-- work item status
-- agentRuns
-- automationRuns
-- decisionLogs
-- changeLogs
-- codexEvidence
+### 3. Reviewer Result Import
 
-## How to Run
+```json
+{
+  "agentRole": "reviewer",
+  "workItemId": "work_review_dev_1",
+  "status": "needs_revision",
+  "findings": [
+    {
+      "severity": "high",
+      "file": "src/example.js",
+      "line": 12,
+      "title": "Missing regression test",
+      "description": "The implementation has no focused test for the changed behavior.",
+      "recommendation": "Add a test that fails before the fix and passes after it."
+    }
+  ],
+  "recommendedChanges": ["Add focused regression coverage."],
+  "changedFiles": [],
+  "tests": ["node --test"],
+  "risks": [],
+  "approvalGate": "requires_user_decision"
+}
+```
 
-### Option A. Full Workflow with Codex Runner
+기대 결과:
 
-Codex 실행까지 연결하려면 Runner를 실행합니다.
+- `work_review_dev_1` 상태가 `Needs Revision`
+- 연결된 `work_dev_1`도 `Needs Revision`
+- Imported Agent Results에 severity, file:line, recommendation 표시
+
+## Local Agent Scripts
+
+### Development Agent
 
 ```powershell
-node agents\runner\server.mjs
+node agents\development-agent\scripts\validate-input.mjs package.json work-item.json
+node agents\development-agent\scripts\create-result-template.mjs work-item.json result.json
 ```
 
-브라우저에서 접속합니다.
-
-```text
-http://127.0.0.1:4173/index.html
-```
-
-Runner는 정적 앱과 API를 함께 제공합니다.
-
-### Option B. Static UI Only
-
-Codex 실행 없이 UI와 파일 기반 handoff만 확인하려면 정적 서버로 실행할 수 있습니다.
+### Code Review Agent
 
 ```powershell
-python -m http.server 4173
+node agents\code-review-agent\scripts\validate-input.mjs package.json review-work-item.json
+node agents\code-review-agent\scripts\create-result-template.mjs review-work-item.json review-result.json
 ```
 
-```text
-http://127.0.0.1:4173/index.html
-```
-
-이 경우 `Codex 시작`은 실제 실행 대신 Prompt 다운로드로 fallback합니다.
-
-## Runner API
-
-Local Runner API:
-
-```text
-GET  /api/runner/health
-POST /api/codex-runs
-GET  /api/codex-runs/:id
-GET  /api/codex-runs/:id/logs
-GET  /api/codex-runs/:id/result
-```
-
-Codex 실행 산출물:
-
-```text
-.agent-runs/
-  codex_run_xxx/
-    package.json
-    prompt.md
-    stdout.jsonl
-    stderr.log
-    status.json
-    result.json
-```
-
-Runner는 다음 원칙으로 동작합니다.
-
-- `127.0.0.1`에서만 listen
-- `workspace-write` sandbox 사용
-- `danger-full-access` 미사용
-- 결과 JSON 검증 실패 시 `blocked` 결과로 변환
-
-## LLM API
-
-사이드바의 `LLM API` 패널에서 OpenAI Chat Completions API 호환 endpoint를 설정할 수 있습니다.
-
-기본값:
-
-```text
-Endpoint: https://api.openai.com/v1/chat/completions
-Model: gpt-4o-mini
-```
-
-보안 정책:
-
-- API Key는 `localStorage`에 저장하지 않습니다.
-- API Key는 현재 페이지 세션 메모리에만 유지됩니다.
-- 새로고침 후에는 API Key를 다시 입력해야 합니다.
-- 허용된 HTTPS endpoint만 사용할 수 있습니다.
-
-## Validation
-
-전체 테스트:
+## Test
 
 ```powershell
 node --test
 ```
 
-문법 검사:
+Current result:
+
+```text
+70 passing
+```
+
+Useful syntax checks:
 
 ```powershell
 node --check src\main.js
 node --check src\automation.js
 node --check src\codexWorkflow.js
 node --check agents\runner\server.mjs
+node --check agents\code-review-agent\scripts\create-result-template.mjs
 ```
 
-Development Agent smoke test:
+## Engineering Highlights
 
-```powershell
-node agents\development-agent\scripts\validate-input.mjs `
-  agents\development-agent\examples\collaboration-package.example.json `
-  agents\development-agent\examples\work-item.example.json
+- Prototype-level `app.js` 구조를 ES Modules 기반 구조로 리팩토링
+- 기획, LLM, storage, collaboration, automation, Codex workflow를 모듈화
+- developer / validator / reviewer 역할 분리
+- 개발 결과와 코드 리뷰 결과를 work item 상태와 자동 연동
+- Codex 실행과 file-based handoff를 모두 지원
+- API key를 localStorage에 저장하지 않도록 persistence sanitization 적용
+- structured review finding을 도입해 코드 리뷰 결과를 추적 가능한 데이터로 전환
+- Node built-in test runner 기반 회귀 테스트 구성
 
-node agents\development-agent\scripts\create-result-template.mjs `
-  agents\development-agent\examples\work-item.example.json
-```
+## Current Status
 
-Codex Agent smoke test:
+완료된 핵심 범위:
 
-```powershell
-node agents\codex-development-agent\scripts\create-codex-prompt.mjs `
-  agents\codex-development-agent\examples\codex-development-package.example.json
+- Product Planning Builder UI
+- PRD / Development / Validation / Agent Package 생성
+- Collaboration Board
+- Developer work item workflow
+- Code review work item workflow
+- Structured review findings
+- Codex development/review package generation
+- Local Codex Runner
+- File-based development agent scaffold
+- File-based code review agent scaffold
+- 70개 자동 테스트
 
-node agents\codex-development-agent\scripts\validate-codex-result.mjs `
-  agents\codex-development-agent\examples\codex-result.example.json
-```
+다음 개선 후보:
 
-최근 검증 결과:
-
-```text
-41 pass / 0 fail
-```
-
-## Portfolio Highlights
-
-- 빌드 도구 없이 ES Module 기반 정적 앱 구성
-- 기획 산출물, 개발 작업, 에이전트 결과를 JSON 계약으로 연결
-- 브라우저 보안 제약을 우회하지 않고 Local Runner로 Codex 실행 분리
-- `codex exec` 결과를 Product Builder의 협업 보드로 자동 반영
-- API Key를 저장하지 않는 LLM 연동 구조
-- 도메인 로직을 테스트 가능한 순수 모듈로 분리
-- 실패한 Codex 실행을 `blocked` Agent Result로 정규화
-
-## Roadmap
-
-- Codex run queue와 재시도 UI
-- 실행 로그 실시간 스트리밍
-- Git branch / commit / PR 생성 연동
-- GitHub Issue 또는 Linear ticket export
-- SQLite/PostgreSQL 기반 영속 저장소
-- 브라우저 E2E 테스트
-- PDF/DOCX export
+- Collaboration Board renderer 추가 분리
+- severity filter UI
+- browser smoke test 자동화
+- review finding을 severity별로 그룹화
+- 실제 Git diff 기반 changed file 검증
