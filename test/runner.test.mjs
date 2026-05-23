@@ -72,6 +72,7 @@ test("buildCodexExecArgs uses workspace-write sandbox", () => {
   assert.deepEqual(args.slice(0, 2), ["exec", "--cd"]);
   assert.ok(args.includes("workspace-write"));
   assert.ok(args.includes("--output-last-message"));
+  assert.equal(args.includes("--ask-for-approval"), false);
 });
 
 test("buildCodexExecArgs uses review schema for review packages", () => {

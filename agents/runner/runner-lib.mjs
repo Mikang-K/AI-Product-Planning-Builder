@@ -99,8 +99,6 @@ export function buildCodexExecArgs(config, paths, packageType = "codex-developme
     "--skip-git-repo-check",
     "--sandbox",
     "workspace-write",
-    "--ask-for-approval",
-    "never",
     "--output-schema",
     schemaPath,
     "--output-last-message",

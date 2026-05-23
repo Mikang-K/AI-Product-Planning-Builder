@@ -74,30 +74,30 @@ import {
   const CODEX_RUN_POLL_MS = 2500;
 
   const tabs = [
-    { id: "diagnosis", label: "??" },
-    { id: "questions", label: "??" },
-    { id: "assumptions", label: "??" },
+    { id: "diagnosis", label: "진단" },
+    { id: "questions", label: "질문" },
+    { id: "assumptions", label: "가정" },
     { id: "mvp", label: "MVP" },
-    { id: "scenario", label: "????" },
-    { id: "experiment", label: "??" },
+    { id: "scenario", label: "시나리오" },
+    { id: "experiment", label: "실험" },
     { id: "prd", label: "PRD" },
-    { id: "development", label: "??" },
-    { id: "validation", label: "??" },
-    { id: "agents", label: "????" },
-    { id: "quality", label: "??" },
-    { id: "logs", label: "??" },
-    { id: "history", label: "??" },
+    { id: "development", label: "개발" },
+    { id: "validation", label: "검증" },
+    { id: "agents", label: "에이전트" },
+    { id: "quality", label: "품질" },
+    { id: "logs", label: "로그" },
+    { id: "history", label: "히스토리" },
   ];
 
   const progressSteps = [
-    "???? ?? ?",
-    "?? ?? ?",
-    "?? ?? ?? ?",
-    "MVP ?? ?",
-    "?? ?? ?",
-    "?? ??? ?? ?",
-    "?? ??? ?? ?",
-    "PRD ?? ?",
+    "아이디어 진단 중",
+    "질문 생성 중",
+    "핵심 가정 정리 중",
+    "MVP 범위 설정 중",
+    "시나리오 작성 중",
+    "검증 실험 설계 중",
+    "개발 패키지 구성 중",
+    "PRD 작성 중",
   ];
 
   const state = {
